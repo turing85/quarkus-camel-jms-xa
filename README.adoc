@@ -1,0 +1,142 @@
+= quarkus-camel-jms-xa
+
+This project demonstrates a bug when `quarkus-artemis-jms`, `quarkus-pooled-jms`, `camel-quarkus-jms` and `quakrus-camel-jta` are used in conjunction with XA transactions.
+
+== Bug description
+
+The transaction stops working correctly when the `concurrentConsumer(...)` on a jms consumer are set to a value `> 9`.
+
+In detail, the XA transaction is not rolled back properly. With more than `9` concurrent consumer, when the transaction aborts, the message is consumed from the JMS address. The expected behaviour is that the message is not consumed and stays in the JMS address.
+
+== Project setup
+
+The application provides two routes:
+
+- route link:src/main/java/de/turing85/quarkus/artemis/xa/FirstJmsRoute.java[] defines a route with `9` concurrent consumers. The consumers are defined in link:src/main/resources/application.properties[] under config-key `application.first-queue.concurrentConsumers`.
+- link:src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java[] defines a route with `10` concurrent consumers. The consumers are defined in link:src/main/resources/application.properties[] under config-key `application.second-queue.concurrentConsumers`.
+
+Both routes are configured in such a way that they stop if an exception occurs.
+
+== Reproducer
+
+The reproducer is provided in form of tests. The nested tests link:src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java[].FirstJmsRouteTest and link:src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java[].SecondJmsRouteTest are carbon-copies of each other. Both classes provide two tests: one happy path test and one rollback test. For SecondJmsRouteTest, the rollback test fails. After the route has been stopped, the message is no longer in the address.
+
+We can run the tests by executing
+
+.Run test
+[source, bash]
+----
+./mvnw clean test
+----
+
+Test `SecondRouteTest::rollbackTest` will fail with the following exception:
+
+.Test exception
+[source]
+----
+...
+value of: testMessageOnTopic(...)
+expected to be true
+
+	at de.turing85.quarkus.artemis.xa.JmsRouteTest$SecondJmsRouteTest.rollbackTest(JmsRouteTest.java:169)
+	at [[Reflective call: 2 frames collapsed (https://goo.gl/aH3UyP)]].(:0)
+	at io.quarkus.test.junit.QuarkusTestExtension.runExtensionMethod(QuarkusTestExtension.java:1013)
+	at io.quarkus.test.junit.QuarkusTestExtension.interceptTestMethod(QuarkusTestExtension.java:827)
+	at [[Testing framework: 27 frames collapsed (https://goo.gl/aH3UyP)]].(:0)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at [[Testing framework: 9 frames collapsed (https://goo.gl/aH3UyP)]].(:0)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at [[Testing framework: 9 frames collapsed (https://goo.gl/aH3UyP)]].(:0)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at [[Testing framework: 22 frames collapsed (https://goo.gl/aH3UyP)]].(:0)
+	at com.intellij.junit5.JUnit5IdeaTestRunner.startRunnerWithArgs(JUnit5IdeaTestRunner.java:57)
+	at com.intellij.rt.junit.IdeaTestRunner$Repeater$1.execute(IdeaTestRunner.java:38)
+	at com.intellij.rt.execution.junit.TestsRepeater.repeat(TestsRepeater.java:11)
+	at com.intellij.rt.junit.IdeaTestRunner$Repeater.startRunnerWithArgs(IdeaTestRunner.java:35)
+	at com.intellij.rt.junit.JUnitStarter.prepareStreamsAndStart(JUnitStarter.java:232)
+	at com.intellij.rt.junit.JUnitStarter.main(JUnitStarter.java:55)
+...
+----
+
+The other three tests succeed.
+
+== Remarks:
+- The project is written for quarkus `3.2.10.Final` (the current LTS), but the same problem is present on the most recent release (quarkus version `3.6.8`, `quarkus-artemis version `3.1.3` and `quarkus-pooled-jms` version `2.3.0`)
+- The issue is still present if we use queues instead of topics
+- As of now, it is unclear which component causes the issue.
+- The behaviour does not change when both camel-consumers use the same `ConnectionFactory`, but still different topics. To test this, we can apply the following patch:
+
+.Patch to use a single connection factory
+[source,patch]
+----
+Subject: [PATCH] use a single connection factory
+---
+Index: src/main/resources/application.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+--- a/src/main/resources/application.properties	(revision ec8e8c4f278355265205755ed505c6d51a372040)
++++ b/src/main/resources/application.properties	(date 1706567198923)
+@@ -4,6 +4,6 @@
+ camel.main.shutdown-timeout = 5
+
+ quarkus.artemis.devservices.enabled = true
+-quarkus.artemis."second".devservices.enabled = true
++# quarkus.artemis."second".devservices.enabled = true
+ quarkus.pooled-jms.transaction = xa
+ quarkus.pooled-jms.max-connections = 20
+\ No newline at end of file
+Index: src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java
+--- a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(revision ec8e8c4f278355265205755ed505c6d51a372040)
++++ b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(date 1706567198912)
+@@ -1,7 +1,7 @@
+ package de.turing85.quarkus.artemis.xa;
+
+-import io.smallrye.common.annotation.Identifier;
+ import jakarta.enterprise.context.ApplicationScoped;
++import jakarta.enterprise.inject.Default;
+ import jakarta.jms.ConnectionFactory;
+ import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+@@ -18,7 +18,7 @@
+   private final int concurrentConsumers;
+
+   public SecondJmsRoute(
+-      @Identifier("second")
++      @Default
+       @SuppressWarnings("CdiInjectionPointsInspection")
+       ConnectionFactory connectionFactory,
+
+Index: src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java
+--- a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(revision ec8e8c4f278355265205755ed505c6d51a372040)
++++ b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(date 1706567198932)
+@@ -2,7 +2,6 @@
+
+ import com.google.common.truth.Truth;
+ import io.quarkus.test.junit.QuarkusTest;
+-import io.smallrye.common.annotation.Identifier;
+ import jakarta.enterprise.inject.Default;
+ import jakarta.inject.Inject;
+ import jakarta.jms.ConnectionFactory;
+@@ -37,7 +36,7 @@
+   ConnectionFactory firstConnectionFactory;
+
+   @Inject
+-  @Identifier("second")
++  @Default
+   @SuppressWarnings("CdiInjectionPointsInspection")
+   ConnectionFactory secondConnectionFactory;
+
+----
