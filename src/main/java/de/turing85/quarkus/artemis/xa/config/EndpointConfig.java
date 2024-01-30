@@ -21,8 +21,10 @@ public class EndpointConfig {
 
   public void onComponentAdd(@Observes ComponentAddEvent event) {
     if (event.getComponent() instanceof JmsComponent jmsComponent) {
-      jmsComponent.setTransactionManager(platformTransactionManager);
+      //jmsComponent.setTransactionManager(platformTransactionManager);
       jmsComponent.getConfiguration().setSynchronous(true);
+      jmsComponent.getConfiguration().setTransacted(true);
+      jmsComponent.getConfiguration().setLazyCreateTransactionManager(false);
     }
   }
 }

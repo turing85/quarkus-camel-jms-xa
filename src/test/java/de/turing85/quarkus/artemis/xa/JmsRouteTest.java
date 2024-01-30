@@ -49,6 +49,7 @@ class JmsRouteTest {
   class FirstJmsRouteTest {
     @BeforeEach
     void setup() throws Exception {
+      mockEndpoint.reset();
       stopRoute(FirstJmsRoute.ROUTE_ID);
       startRoute(FirstJmsRoute.ROUTE_ID);
     }

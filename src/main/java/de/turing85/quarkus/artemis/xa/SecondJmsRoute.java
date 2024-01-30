@@ -36,7 +36,7 @@ public class SecondJmsRoute extends AbstractRoute {
         jms("topic:%s".formatted(ROUTE_TOPIC))
             .connectionFactory(connectionFactory)
             .concurrentConsumers(concurrentConsumers)
-            .subscriptionShared(true)
+            .subscriptionDurable(true)
             .subscriptionShared(true)
             .durableSubscriptionName(ROUTE_SUBSCRIPTION_NAME))
         .id(ROUTE_ID)
