@@ -44,12 +44,20 @@ class JmsRouteTest {
   @EndpointInject("mock:mock")
   MockEndpoint mockEndpoint;
 
+  @BeforeEach
+  void setup() {
+    mockEndpoint.reset();
+  }
+
   @Nested
   @DisplayName("First Route -> 9 consumers -> all good")
   class FirstJmsRouteTest {
     @BeforeEach
     void setup() throws Exception {
       stopRoute(FirstJmsRoute.ROUTE_ID);
+
+      emptyTopic(FirstJmsRoute.ROUTE_TOPIC, FirstJmsRoute.ROUTE_SUBSCRIPTION_NAME, firstConnectionFactory);
+
       startRoute(FirstJmsRoute.ROUTE_ID);
     }
 
@@ -113,6 +121,9 @@ class JmsRouteTest {
     @BeforeEach
     void setup() throws Exception {
       stopRoute(SecondJmsRoute.ROUTE_ID);
+
+      emptyTopic(SecondJmsRoute.ROUTE_TOPIC, SecondJmsRoute.ROUTE_SUBSCRIPTION_NAME, secondConnectionFactory);
+
       startRoute(SecondJmsRoute.ROUTE_ID);
     }
 
@@ -233,6 +244,22 @@ class JmsRouteTest {
       Awaitility.await()
           .atMost(Duration.ofSeconds(5))
           .until(() -> routeIsStopped(routeId));
+    }
+  }
+
+  void emptyTopic(
+      String topicName,
+      String subscriptionName,
+      ConnectionFactory connectionFactory) throws JMSException {
+    try (
+        JMSContext context = connectionFactory.createContext(1);
+        JMSConsumer consumer = context.createSharedDurableConsumer(
+            new ActiveMQTopic(topicName),
+            subscriptionName)) {
+      Message message;
+      while ((message = consumer.receive(Duration.ofSeconds(1).toMillis())) != null) {
+        message.acknowledge();
+      }
     }
   }
 
