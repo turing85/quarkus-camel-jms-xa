@@ -6,7 +6,6 @@ import jakarta.jms.ConnectionFactory;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import static org.apache.camel.builder.endpoint.StaticEndpointBuilders.jms;
-import static org.apache.camel.builder.endpoint.StaticEndpointBuilders.log;
 
 @ApplicationScoped
 public class SecondJmsRoute extends AbstractRoute {
@@ -40,6 +39,6 @@ public class SecondJmsRoute extends AbstractRoute {
             .subscriptionShared(true)
             .durableSubscriptionName(ROUTE_SUBSCRIPTION_NAME))
         .id(ROUTE_ID)
-        .to(log("Route %s: received \"${body}\"".formatted(ROUTE_ID)));
+        .log("Route %s: received \"${body}\"".formatted(ROUTE_ID));
   }
 }
