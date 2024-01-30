@@ -54,11 +54,11 @@ class JmsRouteTest {
   class FirstJmsRouteTest {
     @BeforeEach
     void setup() throws Exception {
-      stopRoute(FirstJmsRoute.ROUTE_ID);
+      stopRoute(FirstJmsRoute.ID);
 
-      emptyTopic(FirstJmsRoute.ROUTE_TOPIC, FirstJmsRoute.ROUTE_SUBSCRIPTION_NAME, firstConnectionFactory);
+      emptyTopic(FirstJmsRoute.TOPIC, FirstJmsRoute.SUBSCRIPTION_NAME, firstConnectionFactory);
 
-      startRoute(FirstJmsRoute.ROUTE_ID);
+      startRoute(FirstJmsRoute.ID);
     }
 
     @Test
@@ -67,25 +67,25 @@ class JmsRouteTest {
       mockEndpoint.expectedMessageCount(1);
       AdviceWith.adviceWith(
           context,
-          FirstJmsRoute.ROUTE_ID,
+          FirstJmsRoute.ID,
           d -> d.weaveAddLast().to(mockEndpoint).id("mockFirst"));
 
       // WHEN
-      sendMessageToTopic(FirstJmsRoute.ROUTE_TOPIC, firstConnectionFactory);
+      sendMessageToTopic(FirstJmsRoute.TOPIC, firstConnectionFactory);
 
       // THEN
       mockEndpoint.assertIsSatisfied();
       Truth
           .assertThat(noMessageOnTopic(
-              FirstJmsRoute.ROUTE_TOPIC,
-              FirstJmsRoute.ROUTE_SUBSCRIPTION_NAME,
+              FirstJmsRoute.TOPIC,
+              FirstJmsRoute.SUBSCRIPTION_NAME,
               firstConnectionFactory))
           .isTrue();
 
       // CLEANUP
       AdviceWith.adviceWith(
           context,
-          FirstJmsRoute.ROUTE_ID,
+          FirstJmsRoute.ID,
           d -> d.weaveById("mockFirst").remove());
     }
 
@@ -94,22 +94,22 @@ class JmsRouteTest {
       // GIVEN
       AdviceWith.adviceWith(
           context,
-          FirstJmsRoute.ROUTE_ID,
+          FirstJmsRoute.ID,
           d -> d.weaveAddFirst().throwException(
               Exception.class,
               "Artificial exception to test rollback"));
 
       // WHEN
-      sendMessageToTopic(FirstJmsRoute.ROUTE_TOPIC, firstConnectionFactory);
+      sendMessageToTopic(FirstJmsRoute.TOPIC, firstConnectionFactory);
 
       // THEN
       Awaitility.await()
           .atMost(Duration.ofSeconds(5))
-          .until(() -> routeIsStopped(FirstJmsRoute.ROUTE_ID));
+          .until(() -> routeIsStopped(FirstJmsRoute.ID));
       Truth
           .assertThat(testMessageOnTopic(
-              FirstJmsRoute.ROUTE_TOPIC,
-              FirstJmsRoute.ROUTE_SUBSCRIPTION_NAME,
+              FirstJmsRoute.TOPIC,
+              FirstJmsRoute.SUBSCRIPTION_NAME,
               firstConnectionFactory))
           .isTrue();
     }
@@ -120,11 +120,11 @@ class JmsRouteTest {
   class SecondJmsRouteTest {
     @BeforeEach
     void setup() throws Exception {
-      stopRoute(SecondJmsRoute.ROUTE_ID);
+      stopRoute(SecondJmsRoute.ID);
 
-      emptyTopic(SecondJmsRoute.ROUTE_TOPIC, SecondJmsRoute.ROUTE_SUBSCRIPTION_NAME, secondConnectionFactory);
+      emptyTopic(SecondJmsRoute.TOPIC, SecondJmsRoute.SUBSCRIPTION_NAME, secondConnectionFactory);
 
-      startRoute(SecondJmsRoute.ROUTE_ID);
+      startRoute(SecondJmsRoute.ID);
     }
 
     @Test
@@ -133,25 +133,25 @@ class JmsRouteTest {
       mockEndpoint.expectedMessageCount(1);
       AdviceWith.adviceWith(
           context,
-          SecondJmsRoute.ROUTE_ID,
+          SecondJmsRoute.ID,
           d -> d.weaveAddLast().to(mockEndpoint).id("mockSecond"));
 
       // WHEN
-      sendMessageToTopic(SecondJmsRoute.ROUTE_TOPIC, secondConnectionFactory);
+      sendMessageToTopic(SecondJmsRoute.TOPIC, secondConnectionFactory);
 
       // THEN
       mockEndpoint.assertIsSatisfied();
       Truth
           .assertThat(noMessageOnTopic(
-              SecondJmsRoute.ROUTE_TOPIC,
-              SecondJmsRoute.ROUTE_SUBSCRIPTION_NAME,
+              SecondJmsRoute.TOPIC,
+              SecondJmsRoute.SUBSCRIPTION_NAME,
               secondConnectionFactory))
           .isTrue();
 
       // CLEANUP
       AdviceWith.adviceWith(
           context,
-          SecondJmsRoute.ROUTE_ID,
+          SecondJmsRoute.ID,
           d -> d.weaveById("mockSecond").remove());
     }
 
@@ -160,22 +160,22 @@ class JmsRouteTest {
       // GIVEN
       AdviceWith.adviceWith(
           context,
-          SecondJmsRoute.ROUTE_ID,
+          SecondJmsRoute.ID,
           d -> d.weaveAddFirst().throwException(
               Exception.class,
               "Artificial exception to test rollback"));
 
       // WHEN
-      sendMessageToTopic(SecondJmsRoute.ROUTE_TOPIC, secondConnectionFactory);
+      sendMessageToTopic(SecondJmsRoute.TOPIC, secondConnectionFactory);
 
       // THEN
       Awaitility.await()
           .atMost(Duration.ofSeconds(5))
-          .until(() -> routeIsStopped(SecondJmsRoute.ROUTE_ID));
+          .until(() -> routeIsStopped(SecondJmsRoute.ID));
       Truth
           .assertThat(testMessageOnTopic(
-              SecondJmsRoute.ROUTE_TOPIC,
-              SecondJmsRoute.ROUTE_SUBSCRIPTION_NAME,
+              SecondJmsRoute.TOPIC,
+              SecondJmsRoute.SUBSCRIPTION_NAME,
               secondConnectionFactory))
           .isTrue();
     }

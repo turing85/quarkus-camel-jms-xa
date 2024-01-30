@@ -77,16 +77,16 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>ISO-8859-1
 ===================================================================
 diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
---- a/src/main/resources/application.properties	(revision ec8e8c4f278355265205755ed505c6d51a372040)
-+++ b/src/main/resources/application.properties	(date 1706567198923)
-@@ -4,6 +4,6 @@
+--- a/src/main/resources/application.properties	(revision c6fe257ae141daa8c2c002a9b74b0d0bce64b77f)
++++ b/src/main/resources/application.properties	(date 1706650290535)
+@@ -4,7 +4,6 @@
  camel.main.shutdown-timeout = 5
 
  quarkus.artemis.devservices.enabled = true
 -quarkus.artemis."second".devservices.enabled = true
-+# quarkus.artemis."second".devservices.enabled = true
  quarkus.pooled-jms.transaction = xa
  quarkus.pooled-jms.max-connections = 20
+ quarkus.transaction-manager.enable-recovery = true
 \ No newline at end of file
 Index: src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java
 IDEA additional info:
@@ -94,8 +94,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java
---- a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(revision ec8e8c4f278355265205755ed505c6d51a372040)
-+++ b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(date 1706567198912)
+--- a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(revision c6fe257ae141daa8c2c002a9b74b0d0bce64b77f)
++++ b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(date 1706650290520)
 @@ -1,7 +1,7 @@
  package de.turing85.quarkus.artemis.xa;
 
@@ -105,7 +105,7 @@ diff --git a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java b/
  import jakarta.jms.ConnectionFactory;
  import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-@@ -18,7 +18,7 @@
+@@ -15,7 +15,7 @@
    private final int concurrentConsumers;
 
    public SecondJmsRoute(
@@ -120,8 +120,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java
---- a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(revision ec8e8c4f278355265205755ed505c6d51a372040)
-+++ b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(date 1706567198932)
+--- a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(revision c6fe257ae141daa8c2c002a9b74b0d0bce64b77f)
++++ b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(date 1706650290545)
 @@ -2,7 +2,6 @@
 
  import com.google.common.truth.Truth;
@@ -130,15 +130,110 @@ diff --git a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java b/sr
  import jakarta.enterprise.inject.Default;
  import jakarta.inject.Inject;
  import jakarta.jms.ConnectionFactory;
-@@ -37,7 +36,7 @@
-   ConnectionFactory firstConnectionFactory;
-
+@@ -34,12 +33,7 @@
    @Inject
--  @Identifier("second")
-+  @Default
+   @Default
    @SuppressWarnings("CdiInjectionPointsInspection")
-   ConnectionFactory secondConnectionFactory;
+-  ConnectionFactory firstConnectionFactory;
+-
+-  @Inject
+-  @Identifier("second")
+-  @SuppressWarnings("CdiInjectionPointsInspection")
+-  ConnectionFactory secondConnectionFactory;
++  ConnectionFactory connectionFactory;
 
+   @EndpointInject("mock:mock")
+   MockEndpoint mockEndpoint;
+@@ -56,7 +50,7 @@
+     void setup() throws Exception {
+       stopRoute(FirstJmsRoute.ID);
+
+-      emptyTopic(FirstJmsRoute.TOPIC, FirstJmsRoute.SUBSCRIPTION_NAME, firstConnectionFactory);
++      emptyTopic(FirstJmsRoute.TOPIC, FirstJmsRoute.SUBSCRIPTION_NAME, connectionFactory);
+
+       startRoute(FirstJmsRoute.ID);
+     }
+@@ -71,7 +65,7 @@
+           d -> d.weaveAddLast().to(mockEndpoint).id("mockFirst"));
+
+       // WHEN
+-      sendMessageToTopic(FirstJmsRoute.TOPIC, firstConnectionFactory);
++      sendMessageToTopic(FirstJmsRoute.TOPIC, connectionFactory);
+
+       // THEN
+       mockEndpoint.assertIsSatisfied();
+@@ -79,7 +73,7 @@
+           .assertThat(noMessageOnTopic(
+               FirstJmsRoute.TOPIC,
+               FirstJmsRoute.SUBSCRIPTION_NAME,
+-              firstConnectionFactory))
++              connectionFactory))
+           .isTrue();
+
+       // CLEANUP
+@@ -100,7 +94,7 @@
+               "Artificial exception to test rollback"));
+
+       // WHEN
+-      sendMessageToTopic(FirstJmsRoute.TOPIC, firstConnectionFactory);
++      sendMessageToTopic(FirstJmsRoute.TOPIC, connectionFactory);
+
+       // THEN
+       Awaitility.await()
+@@ -110,7 +104,7 @@
+           .assertThat(testMessageOnTopic(
+               FirstJmsRoute.TOPIC,
+               FirstJmsRoute.SUBSCRIPTION_NAME,
+-              firstConnectionFactory))
++              connectionFactory))
+           .isTrue();
+     }
+   }
+@@ -122,7 +116,7 @@
+     void setup() throws Exception {
+       stopRoute(SecondJmsRoute.ID);
+
+-      emptyTopic(SecondJmsRoute.TOPIC, SecondJmsRoute.SUBSCRIPTION_NAME, secondConnectionFactory);
++      emptyTopic(SecondJmsRoute.TOPIC, SecondJmsRoute.SUBSCRIPTION_NAME, connectionFactory);
+
+       startRoute(SecondJmsRoute.ID);
+     }
+@@ -137,7 +131,7 @@
+           d -> d.weaveAddLast().to(mockEndpoint).id("mockSecond"));
+
+       // WHEN
+-      sendMessageToTopic(SecondJmsRoute.TOPIC, secondConnectionFactory);
++      sendMessageToTopic(SecondJmsRoute.TOPIC, connectionFactory);
+
+       // THEN
+       mockEndpoint.assertIsSatisfied();
+@@ -145,7 +139,7 @@
+           .assertThat(noMessageOnTopic(
+               SecondJmsRoute.TOPIC,
+               SecondJmsRoute.SUBSCRIPTION_NAME,
+-              secondConnectionFactory))
++              connectionFactory))
+           .isTrue();
+
+       // CLEANUP
+@@ -166,7 +160,7 @@
+               "Artificial exception to test rollback"));
+
+       // WHEN
+-      sendMessageToTopic(SecondJmsRoute.TOPIC, secondConnectionFactory);
++      sendMessageToTopic(SecondJmsRoute.TOPIC, connectionFactory);
+
+       // THEN
+       Awaitility.await()
+@@ -176,7 +170,7 @@
+           .assertThat(testMessageOnTopic(
+               SecondJmsRoute.TOPIC,
+               SecondJmsRoute.SUBSCRIPTION_NAME,
+-              secondConnectionFactory))
++              connectionFactory))
+           .isTrue();
+     }
+   }
 ----
 - Removing `quarkus-pooled-jms` and setting `xa-enabled = true` on both connection factories leads to both rollback tests failing; after the rollback, the message is missing from the queue
 
@@ -153,8 +248,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>ISO-8859-1
 ===================================================================
 diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
---- a/src/main/resources/application.properties	(revision ae74f6edf77c796c6bd197c484f95809708c3ec3)
-+++ b/src/main/resources/application.properties	(date 1706617815163)
+--- a/src/main/resources/application.properties	(revision 69d92916d30617f20d6f3d0e4268bb903ceea1f1)
++++ b/src/main/resources/application.properties	(date 1706650542631)
 @@ -4,7 +4,7 @@
  camel.main.shutdown-timeout = 5
 
@@ -164,7 +259,7 @@ diff --git a/src/main/resources/application.properties b/src/main/resources/appl
 -quarkus.pooled-jms.transaction = xa
 -quarkus.pooled-jms.max-connections = 20
 +quarkus.artemis."second".xa-enabled = true
- quarkus.transaction-manager.enable-recovery=true
+ quarkus.transaction-manager.enable-recovery = true
 \ No newline at end of file
 Index: pom.xml
 IDEA additional info:
@@ -172,8 +267,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/pom.xml b/pom.xml
---- a/pom.xml	(revision ae74f6edf77c796c6bd197c484f95809708c3ec3)
-+++ b/pom.xml	(date 1706617815179)
+--- a/pom.xml	(revision 69d92916d30617f20d6f3d0e4268bb903ceea1f1)
++++ b/pom.xml	(date 1706650614571)
 @@ -18,7 +18,6 @@
      <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
      <quarkus.platform.version>3.2.10.Final</quarkus.platform.version>
@@ -209,14 +304,14 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>ISO-8859-1
 ===================================================================
 diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
---- a/src/main/resources/application.properties	(revision ae74f6edf77c796c6bd197c484f95809708c3ec3)
-+++ b/src/main/resources/application.properties	(date 1706617965442)
+--- a/src/main/resources/application.properties	(revision f58086336f4866a951df684187b8a99dcc8a8203)
++++ b/src/main/resources/application.properties	(date 1706650729497)
 @@ -6,5 +6,5 @@
  quarkus.artemis.devservices.enabled = true
  quarkus.artemis."second".devservices.enabled = true
  quarkus.pooled-jms.transaction = xa
 -quarkus.pooled-jms.max-connections = 20
 +quarkus.pooled-jms.max-connections = 1
- quarkus.transaction-manager.enable-recovery=true
+ quarkus.transaction-manager.enable-recovery = true
 \ No newline at end of file
 ----

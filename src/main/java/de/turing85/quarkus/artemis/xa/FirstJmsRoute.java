@@ -5,13 +5,11 @@ import jakarta.enterprise.inject.Default;
 import jakarta.jms.ConnectionFactory;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import static org.apache.camel.builder.endpoint.StaticEndpointBuilders.jms;
-
 @ApplicationScoped
 public class FirstJmsRoute extends AbstractRoute {
-  public static final String ROUTE_ID = "FIRST_ROUTE";
-  public static final String ROUTE_TOPIC = "FIRST";
-  public static final String ROUTE_SUBSCRIPTION_NAME = "FIRST_SUB";
+  public static final String ID = "FIRST_ROUTE";
+  public static final String TOPIC = "FIRST";
+  public static final String SUBSCRIPTION_NAME = "FIRST_SUB";
 
   private final ConnectionFactory connectionFactory;
   private final int concurrentConsumers;
@@ -27,18 +25,23 @@ public class FirstJmsRoute extends AbstractRoute {
     this.concurrentConsumers = concurrentConsumers;
   }
 
-  @Override
-  public void configure() {
-    onException(Exception.class)
-        .process(exchange -> stopRoute(exchange, ROUTE_ID));
-    from(
-        jms("topic:%s".formatted(ROUTE_TOPIC))
-            .connectionFactory(connectionFactory)
-            .concurrentConsumers(concurrentConsumers)
-            .subscriptionDurable(true)
-            .subscriptionShared(true)
-            .durableSubscriptionName(ROUTE_SUBSCRIPTION_NAME))
-        .id(ROUTE_ID)
-        .log("Route %s: received \"${body}\"".formatted(ROUTE_ID));
+  ConnectionFactory connectionFactory() {
+    return connectionFactory;
+  }
+
+  String topic() {
+    return TOPIC;
+  }
+
+  String routeId() {
+    return ID;
+  }
+
+  String subscriptionName() {
+    return SUBSCRIPTION_NAME;
+  }
+
+  int concurrentConsumers() {
+    return concurrentConsumers;
   }
 }
