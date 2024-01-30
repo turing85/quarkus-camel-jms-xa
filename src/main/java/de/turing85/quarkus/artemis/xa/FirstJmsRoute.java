@@ -8,8 +8,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class FirstJmsRoute extends AbstractRoute {
   public static final String ID = "FIRST_ROUTE";
-  public static final String TOPIC = "FIRST";
-  public static final String SUBSCRIPTION_NAME = "FIRST_SUB";
+  public static final String QUEUE = "FIRST";
 
   private final ConnectionFactory connectionFactory;
   private final int concurrentConsumers;
@@ -29,16 +28,12 @@ public class FirstJmsRoute extends AbstractRoute {
     return connectionFactory;
   }
 
-  String topic() {
-    return TOPIC;
+  String queue() {
+    return QUEUE;
   }
 
   String routeId() {
     return ID;
-  }
-
-  String subscriptionName() {
-    return SUBSCRIPTION_NAME;
   }
 
   int concurrentConsumers() {

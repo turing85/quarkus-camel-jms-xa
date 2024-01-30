@@ -10,7 +10,7 @@ import jakarta.jms.JMSConsumer;
 import jakarta.jms.JMSContext;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
-import org.apache.activemq.artemis.jms.client.ActiveMQTopic;
+import org.apache.activemq.artemis.jms.client.ActiveMQQueue;
 import org.apache.camel.CamelContext;
 import org.apache.camel.EndpointInject;
 import org.apache.camel.builder.AdviceWith;
@@ -56,7 +56,7 @@ class JmsRouteTest {
     void setup() throws Exception {
       stopRoute(FirstJmsRoute.ID);
 
-      emptyTopic(FirstJmsRoute.TOPIC, FirstJmsRoute.SUBSCRIPTION_NAME, firstConnectionFactory);
+      emptyQueue(FirstJmsRoute.QUEUE, firstConnectionFactory);
 
       startRoute(FirstJmsRoute.ID);
     }
@@ -71,15 +71,12 @@ class JmsRouteTest {
           d -> d.weaveAddLast().to(mockEndpoint).id("mockFirst"));
 
       // WHEN
-      sendMessageToTopic(FirstJmsRoute.TOPIC, firstConnectionFactory);
+      sendMessageToQueue(FirstJmsRoute.QUEUE, firstConnectionFactory);
 
       // THEN
       mockEndpoint.assertIsSatisfied();
       Truth
-          .assertThat(noMessageOnTopic(
-              FirstJmsRoute.TOPIC,
-              FirstJmsRoute.SUBSCRIPTION_NAME,
-              firstConnectionFactory))
+          .assertThat(noMessageOnQueue(FirstJmsRoute.QUEUE, firstConnectionFactory))
           .isTrue();
 
       // CLEANUP
@@ -100,17 +97,14 @@ class JmsRouteTest {
               "Artificial exception to test rollback"));
 
       // WHEN
-      sendMessageToTopic(FirstJmsRoute.TOPIC, firstConnectionFactory);
+      sendMessageToQueue(FirstJmsRoute.QUEUE, firstConnectionFactory);
 
       // THEN
       Awaitility.await()
           .atMost(Duration.ofSeconds(5))
           .until(() -> routeIsStopped(FirstJmsRoute.ID));
       Truth
-          .assertThat(testMessageOnTopic(
-              FirstJmsRoute.TOPIC,
-              FirstJmsRoute.SUBSCRIPTION_NAME,
-              firstConnectionFactory))
+          .assertThat(testMessageOnQueue(FirstJmsRoute.QUEUE, firstConnectionFactory))
           .isTrue();
     }
   }
@@ -122,7 +116,7 @@ class JmsRouteTest {
     void setup() throws Exception {
       stopRoute(SecondJmsRoute.ID);
 
-      emptyTopic(SecondJmsRoute.TOPIC, SecondJmsRoute.SUBSCRIPTION_NAME, secondConnectionFactory);
+      emptyQueue(SecondJmsRoute.QUEUE, secondConnectionFactory);
 
       startRoute(SecondJmsRoute.ID);
     }
@@ -137,15 +131,12 @@ class JmsRouteTest {
           d -> d.weaveAddLast().to(mockEndpoint).id("mockSecond"));
 
       // WHEN
-      sendMessageToTopic(SecondJmsRoute.TOPIC, secondConnectionFactory);
+      sendMessageToQueue(SecondJmsRoute.QUEUE, secondConnectionFactory);
 
       // THEN
       mockEndpoint.assertIsSatisfied();
       Truth
-          .assertThat(noMessageOnTopic(
-              SecondJmsRoute.TOPIC,
-              SecondJmsRoute.SUBSCRIPTION_NAME,
-              secondConnectionFactory))
+          .assertThat(noMessageOnQueue(SecondJmsRoute.QUEUE, secondConnectionFactory))
           .isTrue();
 
       // CLEANUP
@@ -166,49 +157,37 @@ class JmsRouteTest {
               "Artificial exception to test rollback"));
 
       // WHEN
-      sendMessageToTopic(SecondJmsRoute.TOPIC, secondConnectionFactory);
+      sendMessageToQueue(SecondJmsRoute.QUEUE, secondConnectionFactory);
 
       // THEN
       Awaitility.await()
           .atMost(Duration.ofSeconds(5))
           .until(() -> routeIsStopped(SecondJmsRoute.ID));
       Truth
-          .assertThat(testMessageOnTopic(
-              SecondJmsRoute.TOPIC,
-              SecondJmsRoute.SUBSCRIPTION_NAME,
-              secondConnectionFactory))
+          .assertThat(testMessageOnQueue(SecondJmsRoute.QUEUE, secondConnectionFactory))
           .isTrue();
     }
   }
 
-  void sendMessageToTopic(String topicName, ConnectionFactory connectionFactory) {
+  void sendMessageToQueue(String queueName, ConnectionFactory connectionFactory) {
     try (JMSContext context = connectionFactory.createContext(1)) {
-      context.createProducer().send(new ActiveMQTopic(topicName), TEST_MESSAGE);
+      context.createProducer().send(new ActiveMQQueue(queueName), TEST_MESSAGE);
     }
   }
 
-  boolean noMessageOnTopic(
-      String topicName,
-      String subscriptionName,
-      ConnectionFactory connectionFactory) {
+  boolean noMessageOnQueue(String queueName, ConnectionFactory connectionFactory) {
     try (
         JMSContext context = connectionFactory.createContext(1);
-        JMSConsumer consumer = context.createSharedDurableConsumer(
-            new ActiveMQTopic(topicName),
-            subscriptionName)) {
+        JMSConsumer consumer = context.createConsumer(
+            new ActiveMQQueue(queueName))) {
       return Objects.isNull(consumer.receive(Duration.ofSeconds(1).toMillis()));
     }
   }
 
-  boolean testMessageOnTopic(
-      String topicName,
-      String subscriptionName,
-      ConnectionFactory connectionFactory) {
+  boolean testMessageOnQueue(String queueName, ConnectionFactory connectionFactory) {
     try (
         JMSContext context = connectionFactory.createContext(1);
-        JMSConsumer consumer = context.createSharedDurableConsumer(
-            new ActiveMQTopic(topicName),
-            subscriptionName)) {
+        JMSConsumer consumer = context.createConsumer(new ActiveMQQueue(queueName))) {
       Message received = consumer.receive(Duration.ofSeconds(1).toMillis());
       if (Objects.nonNull(received)) {
         try {
@@ -247,15 +226,12 @@ class JmsRouteTest {
     }
   }
 
-  void emptyTopic(
-      String topicName,
-      String subscriptionName,
+  void emptyQueue(
+      String queueName,
       ConnectionFactory connectionFactory) throws JMSException {
     try (
         JMSContext context = connectionFactory.createContext(1);
-        JMSConsumer consumer = context.createSharedDurableConsumer(
-            new ActiveMQTopic(topicName),
-            subscriptionName)) {
+        JMSConsumer consumer = context.createConsumer(new ActiveMQQueue(queueName))) {
       Message message;
       while ((message = consumer.receive(Duration.ofSeconds(1).toMillis())) != null) {
         message.acknowledge();

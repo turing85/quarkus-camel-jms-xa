@@ -20,8 +20,7 @@ abstract class AbstractRoute extends RouteBuilder {
 
   abstract String routeId();
   abstract ConnectionFactory connectionFactory();
-  abstract String topic();
-  abstract String subscriptionName();
+  abstract String queue();
   abstract int concurrentConsumers();
 
   @Override
@@ -29,12 +28,9 @@ abstract class AbstractRoute extends RouteBuilder {
     onException(Exception.class)
         .process(exchange -> stopRoute(exchange, routeId()));
     from(
-        jms("topic:%s".formatted(topic()))
+        jms("queue:%s".formatted(queue()))
             .connectionFactory(connectionFactory())
-            .concurrentConsumers(concurrentConsumers())
-            .subscriptionDurable(true)
-            .subscriptionShared(true)
-            .durableSubscriptionName(subscriptionName()))
+            .concurrentConsumers(concurrentConsumers()))
         .id(routeId())
         .log("Route %s: received \"${body}\"".formatted(routeId()));
   }
