@@ -15,7 +15,7 @@ public class EndpointConfig {
 
   public EndpointConfig(
       UserTransaction userTransaction,
-      TransactionManager transactionManager) {
+      @SuppressWarnings("CdiInjectionPointsInspection") TransactionManager transactionManager) {
     this.platformTransactionManager = new JtaTransactionManager(userTransaction, transactionManager);
   }
 
@@ -23,6 +23,7 @@ public class EndpointConfig {
     if (event.getComponent() instanceof JmsComponent jmsComponent) {
       jmsComponent.setTransactionManager(platformTransactionManager);
       jmsComponent.getConfiguration().setSynchronous(true);
+      jmsComponent.getConfiguration().setTransacted(true);
     }
   }
 }
