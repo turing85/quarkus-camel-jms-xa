@@ -4,6 +4,7 @@ import jakarta.enterprise.context.Dependent;
 import jakarta.enterprise.event.Observes;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.UserTransaction;
+import org.apache.camel.component.jms.DefaultTaskExecutorType;
 import org.apache.camel.component.jms.JmsComponent;
 import org.apache.camel.quarkus.core.events.ComponentAddEvent;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -22,6 +23,7 @@ public class EndpointConfig {
   public void onComponentAdd(@Observes ComponentAddEvent event) {
     if (event.getComponent() instanceof JmsComponent jmsComponent) {
       jmsComponent.setTransactionManager(platformTransactionManager);
+      jmsComponent.setDefaultTaskExecutorType(DefaultTaskExecutorType.ThreadPool);
       jmsComponent.getConfiguration().setSynchronous(true);
     }
   }
