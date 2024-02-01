@@ -61,7 +61,7 @@ expected to be true
 The other three tests succeed.
 
 == Remarks:
-- The project is written for quarkus `3.2.10.Final` (the current LTS), but the same problem is present on the most recent release (quarkus and quarkus-camel version `3.6.8`, and `quarkus-artemis version `3.1.4`)
+- The project is written for quarkus `3.2.10.Final` (the current LTS), but the same problem is present on the most recent release (quarkus version `3.6.8`, `quarkus-artemis version `3.1.3` and `quarkus-pooled-jms` version `2.3.0`)
 - The issue is still present if we use queues instead of topics, see branch `feature/use-queues`
 - As of now, it is unclear which component causes the issue.
 - The behaviour does not change when both camel-consumers use the same `ConnectionFactory`, but still different topics. To test this, we can apply the following patch:
@@ -71,14 +71,31 @@ The other three tests succeed.
 ----
 Subject: [PATCH] use a single connection factory
 ---
+Index: src/main/resources/application.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+--- a/src/main/resources/application.properties	(revision c6fe257ae141daa8c2c002a9b74b0d0bce64b77f)
++++ b/src/main/resources/application.properties	(date 1706650290535)
+@@ -4,7 +4,6 @@
+ camel.main.shutdown-timeout = 5
+
+ quarkus.artemis.devservices.enabled = true
+-quarkus.artemis."second".devservices.enabled = true
+ quarkus.pooled-jms.transaction = xa
+ quarkus.pooled-jms.max-connections = 20
+ quarkus.transaction-manager.enable-recovery = true
+\ No newline at end of file
 Index: src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java
---- a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(revision 51c4cefacb9934f58be7c1b502897b59bd3aa436)
-+++ b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(date 1706723904677)
+--- a/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(revision c6fe257ae141daa8c2c002a9b74b0d0bce64b77f)
++++ b/src/main/java/de/turing85/quarkus/artemis/xa/SecondJmsRoute.java	(date 1706650290520)
 @@ -1,7 +1,7 @@
  package de.turing85.quarkus.artemis.xa;
 
@@ -103,8 +120,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java
---- a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(revision 51c4cefacb9934f58be7c1b502897b59bd3aa436)
-+++ b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(date 1706723904689)
+--- a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(revision c6fe257ae141daa8c2c002a9b74b0d0bce64b77f)
++++ b/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java	(date 1706650290545)
 @@ -2,7 +2,6 @@
 
  import com.google.common.truth.Truth;
@@ -217,5 +234,84 @@ diff --git a/src/test/java/de/turing85/quarkus/artemis/xa/JmsRouteTest.java b/sr
            .isTrue();
      }
    }
+----
+- Removing `quarkus-pooled-jms` and setting `xa-enabled = true` on both connection factories leads to both rollback tests failing; after the rollback, the message is missing from the queue
 
+.Patch to remove `quarkus-pooled-jms`
+[source, patch]
+----
+Subject: [PATCH] remove pooled-jms
+---
+Index: src/main/resources/application.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+--- a/src/main/resources/application.properties	(revision 69d92916d30617f20d6f3d0e4268bb903ceea1f1)
++++ b/src/main/resources/application.properties	(date 1706650542631)
+@@ -4,7 +4,7 @@
+ camel.main.shutdown-timeout = 5
+
+ quarkus.artemis.devservices.enabled = true
++quarkus.artemis.xa-enabled = true
+ quarkus.artemis."second".devservices.enabled = true
+-quarkus.pooled-jms.transaction = xa
+-quarkus.pooled-jms.max-connections = 20
++quarkus.artemis."second".xa-enabled = true
+ quarkus.transaction-manager.enable-recovery = true
+\ No newline at end of file
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pom.xml b/pom.xml
+--- a/pom.xml	(revision 69d92916d30617f20d6f3d0e4268bb903ceea1f1)
++++ b/pom.xml	(date 1706650614571)
+@@ -18,7 +18,6 @@
+     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
+     <quarkus.platform.version>3.2.10.Final</quarkus.platform.version>
+     <quarkus-artemis.version>3.0.4</quarkus-artemis.version>
+-    <quarkus-pooled-jms.version>2.1.1</quarkus-pooled-jms.version>
+
+     <awaitility.version>4.2.0</awaitility.version>
+     <truth.version>1.3.0</truth.version>
+@@ -113,11 +112,6 @@
+       <groupId>io.quarkiverse.artemis</groupId>
+       <artifactId>quarkus-artemis-jms</artifactId>
+     </dependency>
+-    <dependency>
+-      <groupId>io.quarkiverse.messaginghub</groupId>
+-      <artifactId>quarkus-pooled-jms</artifactId>
+-      <version>${quarkus-pooled-jms.version}</version>
+-    </dependency>
+
+     <dependency>
+       <groupId>org.apache.camel.quarkus</groupId>
+----
+
+- Setting `quarkus.pooled-jms.max-connections = 1` does not change the original behaviour, the rollback for the first route (= 9 concurrent consumers) succeeds, the rollback for the second route (= 10 concurrent consumers) fails
+
+.Patch to set `quarkus.pooled-jms.max-connections = 1`
+[source, patch]
+----
+Subject: [PATCH] set quarkus.pooled-jms.max-consumers = 1
+---
+Index: src/main/resources/application.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>ISO-8859-1
+===================================================================
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+--- a/src/main/resources/application.properties	(revision f58086336f4866a951df684187b8a99dcc8a8203)
++++ b/src/main/resources/application.properties	(date 1706650729497)
+@@ -6,5 +6,5 @@
+ quarkus.artemis.devservices.enabled = true
+ quarkus.artemis."second".devservices.enabled = true
+ quarkus.pooled-jms.transaction = xa
+-quarkus.pooled-jms.max-connections = 20
++quarkus.pooled-jms.max-connections = 1
+ quarkus.transaction-manager.enable-recovery = true
+\ No newline at end of file
 ----

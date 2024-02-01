@@ -23,7 +23,6 @@ public class EndpointConfig {
     if (event.getComponent() instanceof JmsComponent jmsComponent) {
       jmsComponent.setTransactionManager(platformTransactionManager);
       jmsComponent.getConfiguration().setSynchronous(true);
-      jmsComponent.getConfiguration().setTransacted(true);
     }
   }
 }
